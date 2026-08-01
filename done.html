@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Blobby Fish</title>
+<!--
+  Oyunun tarayıcıya bakan sonuç sayfası.
+
+  NEDEN BURADA, SUPABASE'DE DEĞİL
+  Supabase Edge Function'lar HTML servis etmiyor: yanıtın Content-Type'ı
+  text/html olsa bile geçit onu text/plain'e çeviriyor (kendi alan adlarından
+  rastgele HTML sunulmasını engellemek için) ve tarayıcı sayfayı ham metin
+  olarak gösteriyor. JSON başlığı geçiyor, HTML geçmiyor.
+
+  Bu yüzden iş bölümü şu: fonksiyon işi yapar ve buraya YÖNLENDİRİR, bu sayfa
+  yalnızca sonucu gösterir. Sayfanın hiçbir yetkisi yok, sadece metin.
+-->
+<style>
+  body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+         background: #0a293f; color: #eaf6ff; margin: 0; min-height: 100vh;
+         display: flex; align-items: center; justify-content: center; }
+  main { text-align: center; padding: 40px 20px; max-width: 420px; }
+  h1 { color: #f7761a; margin: 0 0 10px; font-size: 1.7em; }
+  h1.bad { color: #ff6b6b; }
+  p { color: #9fc0d4; line-height: 1.5; }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="t">Blobby Fish</h1>
+  <p id="m"></p>
+</main>
+<script>
+// Metinler oyuncunun dilinde. Dil, fonksiyonun profilden okuyup adrese
+// eklediği "lang" parametresinden geliyor; bilinmiyorsa İngilizce.
+const T = {
+  verify_ok: {
+    en: ["Email verified", "You can go back to the game."],
+    tr: ["E-posta doğrulandı", "Oyuna geri dönebilirsin."],
+    es: ["Correo verificado", "Puedes volver al juego."],
+    fr: ["E-mail vérifié", "Vous pouvez retourner au jeu."],
+    pt: ["E-mail verificado", "Você pode voltar ao jogo."],
+    de: ["E-Mail bestätigt", "Du kannst zum Spiel zurückkehren."],
+    ru: ["Почта подтверждена", "Можно вернуться в игру."],
+    id: ["Email terverifikasi", "Kamu bisa kembali ke game."],
+    ms: ["E-mel disahkan", "Anda boleh kembali ke permainan."],
+    vi: ["Đã xác minh email", "Bạn có thể quay lại trò chơi."],
+  },
+  login_ok: {
+    en: ["Signed in", "You can go back to the game."],
+    tr: ["Giriş yapıldı", "Oyuna geri dönebilirsin."],
+    es: ["Sesión iniciada", "Puedes volver al juego."],
+    fr: ["Connecté", "Vous pouvez retourner au jeu."],
+    pt: ["Conectado", "Você pode voltar ao jogo."],
+    de: ["Angemeldet", "Du kannst zum Spiel zurückkehren."],
+    ru: ["Вход выполнен", "Можно вернуться в игру."],
+    id: ["Berhasil masuk", "Kamu bisa kembali ke game."],
+    ms: ["Berjaya log masuk", "Anda boleh kembali ke permainan."],
+    vi: ["Đã đăng nhập", "Bạn có thể quay lại trò chơi."],
+  },
+  reset_ok: {
+    en: ["Password changed", "You can sign in to the game now."],
+    tr: ["Parola değişti", "Artık oyuna giriş yapabilirsin."],
+    es: ["Contraseña cambiada", "Ya puedes entrar en el juego."],
+    fr: ["Mot de passe modifié", "Tu peux te connecter au jeu."],
+    pt: ["Senha alterada", "Agora você pode entrar no jogo."],
+    de: ["Passwort geändert", "Du kannst dich jetzt im Spiel anmelden."],
+    ru: ["Пароль изменён", "Теперь можно войти в игру."],
+    id: ["Kata sandi diubah", "Sekarang kamu bisa masuk ke game."],
+    ms: ["Kata laluan ditukar", "Anda boleh log masuk sekarang."],
+    vi: ["Đã đổi mật khẩu", "Bây giờ bạn có thể đăng nhập."],
+  },
+  // Hatalar: bağlantı geçersiz / süresi dolmuş / adres değişmiş / iptal
+  bad: {
+    en: ["Link is not valid", "Request a new one in the game."],
+    tr: ["Bağlantı geçersiz", "Oyundan yeni bir tane iste."],
+    es: ["Enlace no válido", "Pide otro en el juego."],
+    fr: ["Lien invalide", "Demandes-en un nouveau dans le jeu."],
+    pt: ["Link inválido", "Peça outro no jogo."],
+    de: ["Link ungültig", "Fordere im Spiel einen neuen an."],
+    ru: ["Ссылка недействительна", "Запросите новую в игре."],
+    id: ["Tautan tidak valid", "Minta yang baru di game."],
+    ms: ["Pautan tidak sah", "Minta yang baharu dalam permainan."],
+    vi: ["Liên kết không hợp lệ", "Hãy yêu cầu liên kết mới trong trò chơi."],
+  },
+  expired: {
+    en: ["Link has expired", "Request a new one in the game."],
+    tr: ["Bağlantının süresi doldu", "Oyundan yeni bir tane iste."],
+    es: ["El enlace ha caducado", "Pide otro en el juego."],
+    fr: ["Le lien a expiré", "Demandes-en un nouveau dans le jeu."],
+    pt: ["O link expirou", "Peça outro no jogo."],
+    de: ["Link abgelaufen", "Fordere im Spiel einen neuen an."],
+    ru: ["Срок ссылки истёк", "Запросите новую в игре."],
+    id: ["Tautan kedaluwarsa", "Minta yang baru di game."],
+    ms: ["Pautan tamat tempoh", "Minta yang baharu dalam permainan."],
+    vi: ["Liên kết đã hết hạn", "Hãy yêu cầu liên kết mới trong trò chơi."],
+  },
+  changed: {
+    en: ["The address changed", "Request a new link in the game."],
+    tr: ["Adres değişmiş", "Oyundan yeni bir bağlantı iste."],
+    es: ["La dirección cambió", "Pide un enlace nuevo en el juego."],
+    fr: ["L'adresse a changé", "Demande un nouveau lien dans le jeu."],
+    pt: ["O endereço mudou", "Peça um novo link no jogo."],
+    de: ["Die Adresse hat sich geändert", "Fordere im Spiel einen neuen Link an."],
+    ru: ["Адрес изменился", "Запросите новую ссылку в игре."],
+    id: ["Alamat berubah", "Minta tautan baru di game."],
+    ms: ["Alamat telah berubah", "Minta pautan baharu dalam permainan."],
+    vi: ["Địa chỉ đã thay đổi", "Hãy yêu cầu liên kết mới trong trò chơi."],
+  },
+  cancelled: {
+    en: ["Sign-in was not completed", "You can try again in the game."],
+    tr: ["Giriş tamamlanmadı", "Oyundan tekrar deneyebilirsin."],
+    es: ["No se completó el acceso", "Puedes intentarlo de nuevo en el juego."],
+    fr: ["Connexion non terminée", "Tu peux réessayer dans le jeu."],
+    pt: ["Login não concluído", "Você pode tentar de novo no jogo."],
+    de: ["Anmeldung nicht abgeschlossen", "Du kannst es im Spiel erneut versuchen."],
+    ru: ["Вход не завершён", "Попробуйте снова в игре."],
+    id: ["Masuk tidak selesai", "Coba lagi di game."],
+    ms: ["Log masuk tidak selesai", "Cuba lagi dalam permainan."],
+    vi: ["Đăng nhập chưa xong", "Bạn có thể thử lại trong trò chơi."],
+  },
+};
+
+const q = new URLSearchParams(location.search);
+const lang = q.get("lang") || "en";
+const key = q.get("e") || (q.get("p") ? q.get("p") + "_ok" : "bad");
+const table = T[key] || T.bad;
+const [title, msg] = table[lang] || table.en;
+document.getElementById("t").textContent = title;
+document.getElementById("t").className = key.endsWith("_ok") ? "" : "bad";
+document.getElementById("m").textContent = msg;
+document.documentElement.lang = lang;
+</script>
+</body>
+</html>
