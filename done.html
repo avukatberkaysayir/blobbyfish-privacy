@@ -132,21 +132,20 @@ document.getElementById("t").className = key.endsWith("_ok") ? "" : "bad";
 document.getElementById("m").textContent = msg;
 document.documentElement.lang = lang;
 
-// OYUNA GERİ DÖNDÜR.
+// OYUNA GERİ DÖNÜŞ: ŞU AN OTOMATİK DEĞİL, BİLEREK.
 //
-// Giriş tarayıcıda bitiyor ve oyuncu orada kalıyordu: yazıyı okuyup elle
-// oyuna dönmesi gerekiyordu. Oyunun manifest'inde "blobbyfish" şeması kayıtlı
-// olduğu için bu adrese gitmek Android'de uygulamayı ÖNE GETİRİYOR.
+// Burada `blobbyfish://done` adresine yönlendirmeyi denedik: oyunun
+// manifest'inde o şema kayıtlı olsaydı Android uygulamayı öne getirirdi.
+// Ama şemayı manifest'e sokmanın dört yolu da tutmadı — Godot dışa aktarma
+// sırasında hem manifesti hem build.gradle'i şablondan yeniden üretiyor
+// (ayrıntı: tools/ altındaki notlar ve depo günlüğü).
 //
-// Bağlantı veri TAŞIMIYOR: oturum zaten yoklamayla geliyor. Tek işi
-// uygulamayı öne almak, o yüzden başarısız olması bir şeyi bozmuyor.
+// Şema kayıtlı DEĞİLKEN yönlendirmek, oyuncuya "ERR_UNKNOWN_URL_SCHEME"
+// hatası göstermek demek: bugünkü "yazıyı oku, geri tuşuna bas" akışından
+// daha kötü. O yüzden yönlendirme yok.
 //
-// Yalnızca Android'de ve yalnızca BAŞARILI sonuçta deneniyor: hata
-// sayfasında oyuncunun yazıyı okuması gerekiyor, masaüstünde ise oyunun
-// şeması kayıtlı değil ve tarayıcı "bilinmeyen adres" hatası gösterirdi.
-if (key.endsWith("_ok") && /Android/i.test(navigator.userAgent)) {
-  setTimeout(() => { location.href = "blobbyfish://done"; }, 1200);
-}
+// Oturum yine de kaybolmuyor: oyun arka planda yoklamaya devam ediyor,
+// oyuncu geri döndüğünde girişli oluyor.
 </script>
 </body>
 </html>
