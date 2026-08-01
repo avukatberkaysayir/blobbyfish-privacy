@@ -131,6 +131,22 @@ document.getElementById("t").textContent = title;
 document.getElementById("t").className = key.endsWith("_ok") ? "" : "bad";
 document.getElementById("m").textContent = msg;
 document.documentElement.lang = lang;
+
+// OYUNA GERİ DÖNDÜR.
+//
+// Giriş tarayıcıda bitiyor ve oyuncu orada kalıyordu: yazıyı okuyup elle
+// oyuna dönmesi gerekiyordu. Oyunun manifest'inde "blobbyfish" şeması kayıtlı
+// olduğu için bu adrese gitmek Android'de uygulamayı ÖNE GETİRİYOR.
+//
+// Bağlantı veri TAŞIMIYOR: oturum zaten yoklamayla geliyor. Tek işi
+// uygulamayı öne almak, o yüzden başarısız olması bir şeyi bozmuyor.
+//
+// Yalnızca Android'de ve yalnızca BAŞARILI sonuçta deneniyor: hata
+// sayfasında oyuncunun yazıyı okuması gerekiyor, masaüstünde ise oyunun
+// şeması kayıtlı değil ve tarayıcı "bilinmeyen adres" hatası gösterirdi.
+if (key.endsWith("_ok") && /Android/i.test(navigator.userAgent)) {
+  setTimeout(() => { location.href = "blobbyfish://done"; }, 1200);
+}
 </script>
 </body>
 </html>
